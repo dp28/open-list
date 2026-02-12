@@ -125,8 +125,9 @@ async function syncChanges(listId, pin, request, env, corsHeaders) {
   }
 
   const { changes, lastSync } = await request.json();
+  const serverTimestamp = new Date().toISOString();
 
-  // Apply incoming changes
+  // Apply incoming changes (use server time to avoid clock drift issues)
   if (changes && changes.length > 0) {
     for (const change of changes) {
       if (change.type === 'add') {
@@ -142,7 +143,7 @@ async function syncChanges(listId, pin, request, env, corsHeaders) {
           listId, 
           change.text, 
           change.completed,
-          change.timestamp
+          serverTimestamp
         ).run();
       } else if (change.type === 'update') {
         await env.DB.prepare(
@@ -151,16 +152,16 @@ async function syncChanges(listId, pin, request, env, corsHeaders) {
            text = ?,
            updated_at = ?
            WHERE id = ? AND list_id = ?`
-        ).bind(change.completed, change.text, change.timestamp, change.id, listId).run();
+        ).bind(change.completed, change.text, serverTimestamp, change.id, listId).run();
       } else if (change.type === 'delete') {
         await env.DB.prepare(
           `UPDATE items SET deleted = TRUE, updated_at = ? WHERE id = ? AND list_id = ?`
-        ).bind(change.timestamp, change.id, listId).run();
+        ).bind(serverTimestamp, change.id, listId).run();
       }
     }
   }
 
-  // Return changes since lastSync
+  // Return changes since lastSync (including what we just saved)
   const { results: serverChanges } = await env.DB.prepare(
     `SELECT id, text, completed, updated_at as timestamp, deleted
      FROM items 
@@ -172,7 +173,7 @@ async function syncChanges(listId, pin, request, env, corsHeaders) {
       ...c,
       type: c.deleted ? 'delete' : 'update'
     })),
-    timestamp: new Date().toISOString()
+    timestamp: serverTimestamp
   }, corsHeaders);
 }
 
