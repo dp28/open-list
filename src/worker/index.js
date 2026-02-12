@@ -4,6 +4,10 @@
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
+    console.log(`Request: ${request.method} ${request.url}`);
+    console.log(`Parsed pathname: "${url.pathname}"`);
+    console.log(`Starts with /api/: ${url.pathname.startsWith('/api/')}`);
+    
     const corsHeaders = {
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
@@ -17,6 +21,7 @@ export default {
     try {
       // Serve static assets for non-API routes
       if (!url.pathname.startsWith('/api/')) {
+        console.log('Serving static asset');
         return env.ASSETS.fetch(request);
       }
 
@@ -24,8 +29,16 @@ export default {
       const listId = request.headers.get('X-List-ID');
       const pin = request.headers.get('X-List-PIN');
 
+      console.log(`API route: ${url.pathname}, Method: ${request.method}`);
+
+      // Health check
+      if (url.pathname === '/api/health') {
+        return json({ status: 'ok', timestamp: new Date().toISOString() }, corsHeaders);
+      }
+
       // Routes
       if (url.pathname === '/api/list' && request.method === 'POST') {
+        console.log('Matched: createList');
         return createList(request, env, corsHeaders);
       }
       
@@ -50,8 +63,10 @@ export default {
         return deleteItem(listId, pin, itemId, env, corsHeaders);
       }
 
-      return new Response('Not found', { status: 404, headers: corsHeaders });
+      console.log('No route matched - returning 404');
+      return json({ error: 'Not found', path: url.pathname, method: request.method }, corsHeaders, 404);
     } catch (err) {
+      console.error('Error:', err);
       return error(err.message, 500, corsHeaders);
     }
   }
@@ -197,8 +212,9 @@ async function deleteItem(listId, pin, itemId, env, corsHeaders) {
   return json({ success: true }, corsHeaders);
 }
 
-function json(data, headers) {
+function json(data, headers, status = 200) {
   return new Response(JSON.stringify(data), {
+    status,
     headers: { 'Content-Type': 'application/json', ...headers }
   });
 }

@@ -1,7 +1,8 @@
 // Main app logic - PWA shopping list
 // Works offline, syncs when online
 
-const API_URL = ''; // Same origin (deployed to Pages, API is Worker)
+// API is served from same origin by the Worker
+const API_URL = window.location.origin;
 const localDB = new LocalDB();
 
 let currentList = null;
