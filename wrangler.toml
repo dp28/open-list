@@ -1,6 +1,10 @@
 name = "shopping-list-api"
 compatibility_date = "2024-01-01"
 
+# Serve static assets from the Worker
+[assets]
+directory = "src/client"
+
 [[d1_databases]]
 binding = "DB"
 database_name = "shopping-list-db"

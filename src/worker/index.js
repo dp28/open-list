@@ -15,6 +15,11 @@ export default {
     }
 
     try {
+      // Serve static assets for non-API routes
+      if (!url.pathname.startsWith('/api/')) {
+        return env.ASSETS.fetch(request);
+      }
+
       // Extract list ID and PIN from headers
       const listId = request.headers.get('X-List-ID');
       const pin = request.headers.get('X-List-PIN');
