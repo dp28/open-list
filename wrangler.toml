@@ -1,0 +1,7 @@
+name = "shopping-list-api"
+compatibility_date = "2024-01-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "shopping-list-db"
+database_id = "c6951c65-f527-4580-9c75-9690d7b83059"

@@ -1,0 +1,15 @@
+{
+  "name": "shopping-list",
+  "version": "1.0.0",
+  "description": "Simple shared shopping list",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "scripts": {
+    "dev": "wrangler dev src/worker/index.js",
+    "deploy": "wrangler deploy src/worker/index.js"
+  },
+  "devDependencies": {
+    "wrangler": "^3.0.0"
+  }
+}
