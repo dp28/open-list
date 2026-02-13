@@ -6,6 +6,7 @@
     "node": ">=22.0.0"
   },
   "scripts": {
+    "build": "node scripts/build.js",
     "dev": "wrangler dev src/worker/index.js",
     "deploy": "wrangler deploy src/worker/index.js"
   },

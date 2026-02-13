@@ -1,8 +1,8 @@
-// IndexedDB wrapper for offline storage
+// IndexedDB wrapper for offline storage with categories
 // Zero dependencies - vanilla JS only
 
 const DB_NAME = 'shopping-list';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 class LocalDB {
   constructor() {
@@ -21,10 +21,23 @@ class LocalDB {
       
       request.onupgradeneeded = (event) => {
         const db = event.target.result;
+        const oldVersion = event.oldVersion;
         
         // Store items locally
         if (!db.objectStoreNames.contains('items')) {
           const store = db.createObjectStore('items', { keyPath: 'id' });
+          store.createIndex('updatedAt', 'updatedAt', { unique: false });
+          store.createIndex('categoryId', 'categoryId', { unique: false });
+        } else if (oldVersion < 2) {
+          // Add category index to existing items store
+          const store = request.transaction.objectStore('items');
+          store.createIndex('categoryId', 'categoryId', { unique: false });
+        }
+        
+        // Store categories
+        if (!db.objectStoreNames.contains('categories')) {
+          const store = db.createObjectStore('categories', { keyPath: 'id' });
+          store.createIndex('sortOrder', 'sortOrder', { unique: false });
           store.createIndex('updatedAt', 'updatedAt', { unique: false });
         }
         
@@ -48,6 +61,29 @@ class LocalDB {
       const tx = this.db.transaction('items', 'readonly');
       const store = tx.objectStore('items');
       const request = store.getAll();
+      request.onsuccess = () => resolve(request.result.filter(i => !i.deleted));
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  async getItem(id) {
+    if (!this.db) await this.init();
+    return new Promise((resolve, reject) => {
+      const tx = this.db.transaction('items', 'readonly');
+      const store = tx.objectStore('items');
+      const request = store.get(id);
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  async getItemsByCategory(categoryId) {
+    if (!this.db) await this.init();
+    return new Promise((resolve, reject) => {
+      const tx = this.db.transaction('items', 'readonly');
+      const store = tx.objectStore('items');
+      const index = store.index('categoryId');
+      const request = index.getAll(categoryId);
       request.onsuccess = () => resolve(request.result.filter(i => !i.deleted));
       request.onerror = () => reject(request.error);
     });
@@ -84,6 +120,66 @@ class LocalDB {
       request.onsuccess = () => resolve();
       request.onerror = () => reject(request.error);
     });
+  }
+
+  // Categories
+  async getCategories() {
+    if (!this.db) await this.init();
+    return new Promise((resolve, reject) => {
+      const tx = this.db.transaction('categories', 'readonly');
+      const store = tx.objectStore('categories');
+      const request = store.getAll();
+      request.onsuccess = () => resolve(request.result.filter(c => !c.deleted).sort((a, b) => a.sortOrder - b.sortOrder));
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  async saveCategory(category) {
+    if (!this.db) await this.init();
+    return new Promise((resolve, reject) => {
+      const tx = this.db.transaction('categories', 'readwrite');
+      const store = tx.objectStore('categories');
+      const request = store.put(category);
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  async deleteCategory(id) {
+    if (!this.db) await this.init();
+    return new Promise((resolve, reject) => {
+      const tx = this.db.transaction('categories', 'readwrite');
+      const store = tx.objectStore('categories');
+      const request = store.delete(id);
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  async clearCategories() {
+    if (!this.db) await this.init();
+    return new Promise((resolve, reject) => {
+      const tx = this.db.transaction('categories', 'readwrite');
+      const store = tx.objectStore('categories');
+      const request = store.clear();
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  // Get category by name (for auto-suggest)
+  async getCategoryByName(name) {
+    if (!this.db) await this.init();
+    const categories = await this.getCategories();
+    return categories.find(c => c.name.toLowerCase() === name.toLowerCase());
+  }
+
+  // Find category for item text (auto-suggest)
+  async suggestCategoryForItem(text) {
+    if (!this.db) await this.init();
+    const items = await this.getItems();
+    const match = items.find(i => i.text.toLowerCase() === text.toLowerCase() && i.categoryId);
+    return match ? match.categoryId : null;
   }
 
   // Pending changes queue
@@ -144,9 +240,3 @@ class LocalDB {
   }
 }
 
-// Generate unique IDs without external libs
-function generateId() {
-  const arr = new Uint8Array(16);
-  crypto.getRandomValues(arr);
-  return Array.from(arr).map(b => b.toString(16).padStart(2, '0')).join('');
-}

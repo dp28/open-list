@@ -4,3 +4,6 @@ dist/
 .env
 .DS_Store
 *.log
+
+# Generated version file (created by build script)
+src/client/version.json

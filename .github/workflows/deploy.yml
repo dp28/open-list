@@ -15,12 +15,18 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
-      
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run build to inject version fingerprint
+        run: npm run build
+
       - name: Install Wrangler
         run: npm install -g wrangler
-      
+
       - name: Deploy
-        run: wrangler deploy
+        run: npm run deploy
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

@@ -36,16 +36,89 @@
       opacity: 0.9;
     }
     
-    .add-form {
+    .header-content {
       display: flex;
-      padding: 12px;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .header-actions {
+      display: flex;
       gap: 8px;
+    }
+    
+    .header-btn {
+      background: rgba(255,255,255,0.2);
+      border: none;
+      color: white;
+      padding: 8px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 18px;
+      line-height: 1;
+    }
+    
+    .header-btn:hover {
+      background: rgba(255,255,255,0.3);
+    }
+    
+    .add-section {
       background: white;
       border-bottom: 1px solid #ddd;
     }
     
-    .add-form input {
-      flex: 1;
+    .add-toggle {
+      width: 100%;
+      padding: 12px 16px;
+      background: #f5f5f5;
+      border: none;
+      font-size: 15px;
+      font-weight: 500;
+      color: #333;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .add-toggle:hover {
+      background: #e8e8e8;
+    }
+    
+    .add-toggle-icon {
+      font-size: 12px;
+      transition: transform 0.2s;
+    }
+    
+    .add-toggle.collapsed .add-toggle-icon {
+      transform: rotate(-90deg);
+    }
+    
+    .add-form {
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    
+    .add-form.collapsed {
+      display: none;
+    }
+    
+    .add-form-row {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    
+    @media (min-width: 600px) {
+      .add-form-row {
+        flex-direction: row;
+      }
+    }
+    
+    .add-form input[type="text"], .add-form select {
+      width: 100%;
       padding: 12px 16px;
       border: 2px solid #ddd;
       border-radius: 24px;
@@ -53,12 +126,16 @@
       outline: none;
     }
     
-    .add-form input:focus {
+    .add-form input[type="text"]:focus, .add-form select:focus {
       border-color: #4CAF50;
     }
     
+    .add-form select {
+      background: white;
+    }
+    
     .add-form button {
-      padding: 12px 20px;
+      padding: 12px 24px;
       background: #4CAF50;
       color: white;
       border: none;
@@ -66,26 +143,94 @@
       font-size: 16px;
       font-weight: 500;
       cursor: pointer;
+      white-space: nowrap;
     }
     
     .add-form button:disabled {
       opacity: 0.5;
     }
     
-    .items-list {
-      list-style: none;
+    @media (min-width: 600px) {
+      .add-form button {
+        align-self: flex-start;
+      }
+    }
+    
+    .new-category-input {
+      width: 100%;
+      padding: 12px 16px;
+      border: 2px solid #4CAF50;
+      border-radius: 24px;
+      font-size: 16px;
+      outline: none;
+    }
+    
+    .items-container {
       padding: 8px;
+    }
+    
+    .category-group {
+      background: white;
+      margin-bottom: 12px;
+      border-radius: 12px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      overflow: hidden;
+    }
+    
+    .category-group.dragging {
+      opacity: 0.5;
+    }
+    
+    .category-group.uncategorized {
+      background: #fafafa;
+    }
+    
+    .category-header {
+      display: flex;
+      align-items: center;
+      padding: 12px 16px;
+      background: #f0f0f0;
+      border-bottom: 1px solid #ddd;
+      cursor: grab;
+    }
+    
+    .category-header:active {
+      cursor: grabbing;
+    }
+    
+    .drag-handle {
+      color: #999;
+      font-size: 14px;
+      margin-right: 8px;
+      cursor: grab;
+    }
+    
+    .category-name {
+      flex: 1;
+      font-weight: 600;
+      font-size: 15px;
+      color: #333;
+    }
+    
+    .category-count {
+      font-size: 13px;
+      color: #666;
+    }
+    
+    .category-items {
+      list-style: none;
     }
     
     .item {
       display: flex;
       align-items: center;
-      gap: 12px;
-      padding: 16px;
-      background: white;
-      margin-bottom: 8px;
-      border-radius: 12px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      gap: 10px;
+      padding: 12px 16px;
+      border-bottom: 1px solid #f0f0f0;
+    }
+    
+    .item:last-child {
+      border-bottom: none;
     }
     
     .item.completed .item-text {
@@ -94,8 +239,8 @@
     }
     
     .item-checkbox {
-      width: 24px;
-      height: 24px;
+      width: 20px;
+      height: 20px;
       border: 2px solid #4CAF50;
       border-radius: 50%;
       cursor: pointer;
@@ -112,7 +257,7 @@
     .item-checkbox::after {
       content: '✓';
       color: white;
-      font-size: 14px;
+      font-size: 12px;
       display: none;
     }
     
@@ -122,22 +267,37 @@
     
     .item-text {
       flex: 1;
-      font-size: 16px;
+      font-size: 15px;
     }
     
     .item-delete {
-      padding: 8px;
-      background: #ff5252;
-      color: white;
+      padding: 4px 8px;
+      background: transparent;
+      color: #ff5252;
       border: none;
-      border-radius: 8px;
-      font-size: 12px;
+      font-size: 18px;
       cursor: pointer;
-      opacity: 0.8;
+      opacity: 0.6;
     }
     
     .item-delete:hover {
       opacity: 1;
+    }
+    
+    .category-delete {
+      padding: 4px 8px;
+      background: transparent;
+      color: #999;
+      border: none;
+      font-size: 16px;
+      cursor: pointer;
+      opacity: 0.5;
+      margin-left: 8px;
+    }
+    
+    .category-delete:hover {
+      opacity: 1;
+      color: #ff5252;
     }
     
     .empty-state {
@@ -250,15 +410,117 @@
     }
     
     .hidden { display: none !important; }
+    
+    /* List switcher modal */
+    .modal-wide {
+      max-width: 500px;
+    }
+    
+    .saved-lists {
+      max-height: 400px;
+      overflow-y: auto;
+      margin-bottom: 16px;
+    }
+    
+    .saved-list-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      margin-bottom: 8px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    
+    .saved-list-item:hover {
+      background: #f5f5f5;
+    }
+    
+    .saved-list-item.active {
+      border-color: #4CAF50;
+      background: #e8f5e9;
+    }
+    
+    .saved-list-info {
+      flex: 1;
+    }
+    
+    .saved-list-name {
+      font-weight: 600;
+      font-size: 15px;
+    }
+    
+    .saved-list-id {
+      font-size: 12px;
+      color: #666;
+      margin-top: 2px;
+    }
+    
+    .saved-list-actions {
+      display: flex;
+      gap: 8px;
+    }
+    
+    .list-action-btn {
+      background: transparent;
+      border: none;
+      padding: 6px 10px;
+      cursor: pointer;
+      border-radius: 4px;
+      font-size: 16px;
+    }
+    
+    .list-action-btn:hover {
+      background: #e0e0e0;
+    }
+    
+    .modal-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 16px;
+    }
+    
+    .modal-actions button {
+      flex: 1;
+    }
+    
+    .modal-actions button.secondary {
+      background: #666;
+    }
+    
+    /* Share modal */
+    .share-info {
+      margin-bottom: 12px;
+      color: #666;
+    }
+    
+    .share-url-container {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+    
+    .share-url-container input {
+      flex: 1;
+      margin-bottom: 0;
+    }
+    
+    .copy-btn {
+      width: auto !important;
+      padding: 12px 20px !important;
+      white-space: nowrap;
+    }
   </style>
 </head>
 <body>
-  <div id="setup-modal" class="modal-overlay">
+  <div id="setup-modal" class="modal-overlay hidden">
     <div class="modal">
       <h2>Shopping List</h2>
       <div class="tabs">
-        <button class="tab active" onclick="showTab('create')">New List</button>
-        <button class="tab" onclick="showTab('join')">Join List</button>
+        <button class="tab active" onclick="showSetupTab('create')">New List</button>
+        <button class="tab" onclick="showSetupTab('join')">Join List</button>
       </div>
       
       <div id="create-tab">
@@ -275,17 +537,70 @@
     </div>
   </div>
 
+  <!-- List Switcher Modal -->
+  <div id="list-switcher-modal" class="modal-overlay hidden" onclick="closeListSwitcher(event)">
+    <div class="modal modal-wide" onclick="event.stopPropagation()">
+      <h2>Your Lists</h2>
+      <div id="saved-lists-container" class="saved-lists">
+        <!-- Lists will be populated here -->
+      </div>
+      <div class="modal-actions">
+        <button onclick="showCreateNewListModal()" class="secondary">Create New List</button>
+        <button onclick="hideListSwitcher()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Share Modal -->
+  <div id="share-modal" class="modal-overlay hidden" onclick="closeShareModal(event)">
+    <div class="modal" onclick="event.stopPropagation()">
+      <h2>Share List</h2>
+      <p class="share-info" id="share-list-name"></p>
+      <div class="share-url-container">
+        <input type="text" id="share-url" readonly>
+        <button onclick="copyShareUrl()" class="copy-btn">Copy</button>
+      </div>
+      <div class="modal-actions">
+        <button onclick="shareViaNative()" id="native-share-btn" class="hidden">Share via App</button>
+        <button onclick="hideShareModal()">Close</button>
+      </div>
+    </div>
+  </div>
+
   <header class="header">
-    <h1 id="list-title">Shopping List</h1>
+    <div class="header-content">
+      <h1 id="list-title">Shopping List</h1>
+      <div class="header-actions">
+        <button class="header-btn" onclick="clearCompletedItems()" title="Clear completed">🗑️</button>
+        <button class="header-btn" onclick="showShareModal()" title="Share list">🔗</button>
+        <button class="header-btn" onclick="showListSwitcher()" title="Switch list">☰</button>
+      </div>
+    </div>
     <div class="list-name" id="list-info"></div>
   </header>
   
-  <form class="add-form" id="add-form" onsubmit="addItem(event)">
-    <input type="text" id="new-item" placeholder="Add item..." autocomplete="off" maxlength="100">
-    <button type="submit">Add</button>
-  </form>
+  <div class="add-section">
+    <button class="add-toggle" id="add-toggle" onclick="toggleAddSection()">
+      <span>Add New Item</span>
+      <span class="add-toggle-icon">▼</span>
+    </button>
+    <form class="add-form" id="add-form" onsubmit="addItem(event)">
+      <div class="add-form-row">
+        <input type="text" id="new-item" placeholder="Item name (e.g., Milk)" autocomplete="off" maxlength="100">
+      </div>
+      <div class="add-form-row">
+        <select id="category-select">
+          <option value="">Select category...</option>
+        </select>
+      </div>
+      <div class="add-form-row">
+        <button type="submit">Add Item</button>
+      </div>
+      <input type="text" id="new-category" class="new-category-input hidden" placeholder="Enter new category name" maxlength="30">
+    </form>
+  </div>
   
-  <ul class="items-list" id="items-list"></ul>
+  <div class="items-container" id="items-container"></div>
   
   <div class="empty-state hidden" id="empty-state">
     <svg viewBox="0 0 24 24" fill="currentColor">
