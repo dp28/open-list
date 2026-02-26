@@ -778,7 +778,13 @@ async function deleteCategory(categoryId) {
 
 function updateCategoryDropdown() {
   const select = document.getElementById('category-select');
+  const newCategoryInput = document.getElementById('new-category');
   const currentValue = select.value;
+  
+  // Don't update if user is creating a new category
+  if (currentValue === '__new__' && !newCategoryInput.classList.contains('hidden')) {
+    return;
+  }
   
   // Sort categories alphabetically for dropdown
   const sortedCategories = [...categories].sort((a, b) => a.name.localeCompare(b.name));
@@ -912,6 +918,8 @@ async function syncNow() {
     const orderChange = pending
       .filter(p => p.type === 'category_order')
       .pop();
+    
+
     
     const response = await fetch(`${API_URL}/api/sync`, {
       method: 'POST',

@@ -3,6 +3,17 @@
 
 export default {
   async fetch(request, env, ctx) {
+    // Ensure category_id column exists in items table
+    try {
+      await env.DB.prepare('SELECT category_id FROM items LIMIT 1').first();
+    } catch (e) {
+      try {
+        await env.DB.prepare('ALTER TABLE items ADD COLUMN category_id TEXT').run();
+      } catch (e2) {
+        // Column might already exist or table doesn't exist
+      }
+    }
+    
     const url = new URL(request.url);
     
     const corsHeaders = {
@@ -272,7 +283,8 @@ async function syncChanges(listId, pin, request, env, corsHeaders) {
     return error('Invalid credentials', 401, corsHeaders);
   }
 
-  const { itemChanges, categoryChanges, categoryOrder, lastSync } = await request.json();
+  const body = await request.json();
+  const { itemChanges, categoryChanges, categoryOrder, lastSync } = body;
   const serverTimestamp = new Date().toISOString();
 
   // Apply category changes
@@ -298,7 +310,7 @@ async function syncChanges(listId, pin, request, env, corsHeaders) {
           ).bind(change.name, change.sortOrder, serverTimestamp, change.id, listId).run();
         } else if (change.type === 'delete') {
           await env.DB.prepare(
-            `UPDATE categories SET deleted = TRUE, updated_at = ? WHERE id = ? AND list_id = ?`
+            'UPDATE categories SET deleted = TRUE, updated_at = ? WHERE id = ? AND list_id = ?'
           ).bind(serverTimestamp, change.id, listId).run();
         }
       } catch (e) {
@@ -323,7 +335,7 @@ async function syncChanges(listId, pin, request, env, corsHeaders) {
   // Check if category_id column exists
   let hasCategoryColumn = true;
   try {
-    await env.DB.prepare("SELECT category_id FROM items LIMIT 1").first();
+    await env.DB.prepare('SELECT category_id FROM items LIMIT 1').first();
   } catch (e) {
     hasCategoryColumn = false;
   }
@@ -361,7 +373,7 @@ async function syncChanges(listId, pin, request, env, corsHeaders) {
             ).bind(change.categoryId || null, change.completed, change.text, serverTimestamp, change.id, listId).run();
           } else if (change.type === 'delete') {
             await env.DB.prepare(
-              `UPDATE items SET deleted = TRUE, updated_at = ? WHERE id = ? AND list_id = ?`
+              'UPDATE items SET deleted = TRUE, updated_at = ? WHERE id = ? AND list_id = ?'
             ).bind(serverTimestamp, change.id, listId).run();
           }
         } else {
@@ -391,7 +403,7 @@ async function syncChanges(listId, pin, request, env, corsHeaders) {
             ).bind(change.completed, change.text, serverTimestamp, change.id, listId).run();
           } else if (change.type === 'delete') {
             await env.DB.prepare(
-              `UPDATE items SET deleted = TRUE, updated_at = ? WHERE id = ? AND list_id = ?`
+              'UPDATE items SET deleted = TRUE, updated_at = ? WHERE id = ? AND list_id = ?'
             ).bind(serverTimestamp, change.id, listId).run();
           }
         }
@@ -448,7 +460,8 @@ async function syncChanges(listId, pin, request, env, corsHeaders) {
     })),
     categoryChanges: (serverCategoryChanges || []).map(c => ({
       ...c,
-      type: c.deleted ? 'delete' : 'update'
+      type: c.deleted ? 'delete' : 'update',
+      sortOrder: c.sortOrder
     })),
     categoryOrder: (currentOrder || []).map(c => c.id),
     timestamp: serverTimestamp
@@ -471,7 +484,7 @@ async function addItem(listId, pin, request, env, corsHeaders) {
   // Check if category_id column exists by attempting to describe the table
   let hasCategoryColumn = true;
   try {
-    await env.DB.prepare("SELECT category_id FROM items LIMIT 1").first();
+    await env.DB.prepare('SELECT category_id FROM items LIMIT 1').first();
   } catch (e) {
     hasCategoryColumn = false;
   }
