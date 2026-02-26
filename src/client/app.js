@@ -729,15 +729,8 @@ async function renderItems() {
       handle: '.category-header',
       ghostClass: 'sortable-ghost',
       dragClass: 'sortable-drag',
-      onEnd: (evt) => {
-        const categoryId = evt.item.dataset.categoryId;
-        const newIndex = evt.newIndex;
-        const container = document.getElementById('items-container');
-        const groups = Array.from(container.querySelectorAll('.category-group'));
-        const targetId = groups[newIndex].dataset.categoryId;
-        if (categoryId !== targetId) {
-          reorderCategories(categoryId, targetId);
-        }
+      onEnd: () => {
+        reorderCategories();
       }
     });
   }
@@ -828,26 +821,15 @@ function updateCategoryDropdown() {
 // Category reordering handled by SortableJS
 
 async function reorderCategories(fromId, toId) {
-  // Get current order
+  // SortableJS already reordered the DOM, just update the sortOrder based on current DOM order
   const container = document.getElementById('items-container');
   const groups = Array.from(container.querySelectorAll('.category-group'));
-  const newOrder = groups.map(g => g.dataset.categoryId);
   
-  // Move dragged category before target
-  const fromIndex = newOrder.indexOf(fromId);
-  const toIndex = newOrder.indexOf(toId);
-  
-  if (fromIndex === -1 || toIndex === -1) return;
-  
-  newOrder.splice(fromIndex, 1);
-  newOrder.splice(toIndex, 0, fromId);
-  
-  // Update sortOrder for each category
   const timestamp = new Date().toISOString();
   const categoryChanges = [];
   
-  for (let i = 0; i < newOrder.length; i++) {
-    const catId = newOrder[i];
+  for (let i = 0; i < groups.length; i++) {
+    const catId = groups[i].dataset.categoryId;
     if (catId === 'null') continue; // Skip Uncategorized
     
     const category = categories.find(c => c.id === catId);
@@ -868,7 +850,7 @@ async function reorderCategories(fromId, toId) {
   if (categoryChanges.length > 0) {
     await localDB.queueChange({
       type: 'category_order',
-      order: newOrder.filter(id => id !== 'null'),
+      order: groups.map(g => g.dataset.categoryId).filter(id => id !== 'null'),
       timestamp
     });
     
