@@ -697,11 +697,7 @@ async function renderItems() {
   container.innerHTML = sortedCategories.map((group, index) => `
     <div class="category-group ${group.category.id === null ? 'uncategorized' : ''}" 
          data-category-id="${group.category.id || 'null'}"
-         draggable="true"
-         ondragstart="handleDragStart(event, '${group.category.id || 'null'}')"
-         ondragover="handleDragOver(event)"
-         ondrop="handleDrop(event, '${group.category.id || 'null'}')"
-         ondragend="handleDragEnd()">
+         draggable="true">
       <div class="category-header">
         <span class="drag-handle">⋮⋮</span>
         <span class="category-name">${escapeHtml(group.category.name)}</span>
@@ -721,6 +717,15 @@ async function renderItems() {
       </ul>
     </div>
   `).join('');
+  
+  // Attach drag event listeners
+  container.querySelectorAll('.category-group').forEach(group => {
+    const categoryId = group.dataset.categoryId;
+    group.addEventListener('dragstart', (e) => handleDragStart(e, categoryId));
+    group.addEventListener('dragover', handleDragOver);
+    group.addEventListener('drop', (e) => handleDrop(e, categoryId));
+    group.addEventListener('dragend', handleDragEnd);
+  });
 }
 
 async function deleteCategory(categoryId) {
