@@ -149,6 +149,30 @@ A simple, free, offline-capable shopping list for household use. Multiple users 
 
 ---
 
+## Best Practices for Adding New Features
+
+### Implementation
+- Implement features concisely and securely
+- Follow coding best practices: KISS (Keep It Simple, Stupid), DRY (Don't Repeat Yourself)
+- Think deeply about naming conventions and long-term extensibility without overcomplicating
+
+### Quality Assurance
+- Add automated tests for at least 95% code coverage
+- Ensure all code passes linting checks
+- Verify no existing features are broken
+
+### Version Control
+- Commit each feature as its own commit
+- Commit messages should include:
+  - Brief description of what changed
+  - Slightly longer explanation of why it changed
+
+### Documentation
+- When completing a feature, move it from the Backlog section to the appropriate Requirements section
+- Mark completed features with [x] in checklists
+
+---
+
 ## Backlog
 
 - Fix category reordering (drag and drop does not seem to work)
@@ -180,6 +204,13 @@ A simple, free, offline-capable shopping list for household use. Multiple users 
 - Added "Clear completed items" button to header
 - Bulk deletes all completed items with confirmation
 - Syncs deletions across devices
+
+### 2026-02-14 (latest)
+- **CRITICAL FIX**: Categories table was missing from database - created migration
+- Fixed category sync between devices (categories now properly sync)
+- Fixed category dropdown resetting during sync while user is creating new category
+- Fixed category IDs not being sent with items in sync
+- Added debugging to trace sync issues
 
 ---
 
