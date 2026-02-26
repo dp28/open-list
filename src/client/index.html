@@ -181,6 +181,17 @@
       opacity: 0.5;
     }
     
+    .category-group.sortable-ghost {
+      opacity: 0.4;
+      background: #e0e0e0;
+    }
+    
+    .category-group.sortable-drag {
+      opacity: 0.9;
+      transform: scale(1.02);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
+    
     .category-group.uncategorized {
       background: #fafafa;
     }
@@ -612,6 +623,7 @@
   
   <div class="sync-indicator" id="sync-indicator">Syncing...</div>
 
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
   <script src="db.js"></script>
   <script src="app.js"></script>
 </body>

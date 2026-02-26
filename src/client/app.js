@@ -9,6 +9,7 @@ let savedLists = [];
 let syncInterval = null;
 let categories = [];
 let draggedCategory = null;
+let sortableInstance = null;
 
 // Initialize
 async function init() {
@@ -718,19 +719,28 @@ async function renderItems() {
     </div>
   `).join('');
   
-  // Attach drag and touch event listeners
-  container.querySelectorAll('.category-group').forEach(group => {
-    const categoryId = group.dataset.categoryId;
-    group.addEventListener('dragstart', (e) => handleDragStart(e, categoryId));
-    group.addEventListener('dragover', handleDragOver);
-    group.addEventListener('drop', (e) => handleDrop(e, categoryId));
-    group.addEventListener('dragend', handleDragEnd);
-    
-    // Touch events for mobile
-    group.addEventListener('touchstart', (e) => handleTouchStart(e, categoryId), { passive: true });
-    group.addEventListener('touchmove', (e) => handleTouchMove(e, categoryId), { passive: true });
-    group.addEventListener('touchend', (e) => handleTouchEnd(e, categoryId));
-  });
+  // Initialize SortableJS for drag and drop
+  if (typeof Sortable !== 'undefined') {
+    if (sortableInstance) {
+      sortableInstance.destroy();
+    }
+    sortableInstance = new Sortable(container, {
+      animation: 150,
+      handle: '.category-header',
+      ghostClass: 'sortable-ghost',
+      dragClass: 'sortable-drag',
+      onEnd: (evt) => {
+        const categoryId = evt.item.dataset.categoryId;
+        const newIndex = evt.newIndex;
+        const container = document.getElementById('items-container');
+        const groups = Array.from(container.querySelectorAll('.category-group'));
+        const targetId = groups[newIndex].dataset.categoryId;
+        if (categoryId !== targetId) {
+          reorderCategories(categoryId, targetId);
+        }
+      }
+    });
+  }
 }
 
 async function deleteCategory(categoryId) {
@@ -815,81 +825,7 @@ function updateCategoryDropdown() {
   }
 }
 
-// Drag and drop for category reordering
-function handleDragStart(event, categoryId) {
-  draggedCategory = categoryId;
-  event.target.classList.add('dragging');
-  event.dataTransfer.effectAllowed = 'move';
-}
-
-function handleDragOver(event) {
-  event.preventDefault();
-  event.dataTransfer.dropEffect = 'move';
-}
-
-function handleDrop(event, targetCategoryId) {
-  event.preventDefault();
-  if (draggedCategory === targetCategoryId) return;
-  
-  reorderCategories(draggedCategory, targetCategoryId);
-}
-
-function handleDragEnd() {
-  document.querySelectorAll('.category-group').forEach(el => {
-    el.classList.remove('dragging');
-  });
-  draggedCategory = null;
-}
-
-// Touch handling for mobile
-let touchStartY = 0;
-let touchStartX = 0;
-let touchCategoryId = null;
-let touchMoved = false;
-
-function handleTouchStart(event, categoryId) {
-  const touch = event.touches[0];
-  touchStartX = touch.clientX;
-  touchStartY = touch.clientY;
-  touchCategoryId = categoryId;
-  touchMoved = false;
-}
-
-function handleTouchMove(event, categoryId) {
-  if (!touchCategoryId || touchCategoryId !== categoryId) return;
-  
-  const touch = event.touches[0];
-  const deltaY = Math.abs(touch.clientY - touchStartY);
-  const deltaX = Math.abs(touch.clientX - touchStartX);
-  
-  // Detect if this is a vertical scroll (not a drag)
-  if (deltaY > 10 && deltaY > deltaX) {
-    touchMoved = true;
-  }
-}
-
-function handleTouchEnd(event, categoryId) {
-  if (!touchCategoryId || touchCategoryId !== categoryId) {
-    touchCategoryId = null;
-    return;
-  }
-  
-  // Only trigger reorder if user was actually dragging, not scrolling
-  if (touchMoved) {
-    const container = document.getElementById('items-container');
-    const groups = Array.from(container.querySelectorAll('.category-group'));
-    const currentIndex = groups.findIndex(g => g.dataset.categoryId === touchCategoryId);
-    
-    if (currentIndex > 0) {
-      // Drop above the previous category
-      const targetId = groups[currentIndex - 1].dataset.categoryId;
-      reorderCategories(touchCategoryId, targetId);
-    }
-  }
-  
-  touchCategoryId = null;
-  touchMoved = false;
-}
+// Category reordering handled by SortableJS
 
 async function reorderCategories(fromId, toId) {
   // Get current order
