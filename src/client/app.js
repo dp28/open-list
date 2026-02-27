@@ -331,8 +331,12 @@ function renderSavedLists() {
         <div class="saved-list-id">ID: ${list.id}</div>
       </div>
       <div class="saved-list-actions" onclick="event.stopPropagation()">
-        <button class="list-action-btn" onclick="shareList('${list.id}')" title="Share">🔗</button>
-        <button class="list-action-btn" onclick="deleteSavedList('${list.id}')" title="Remove">🗑️</button>
+        <button class="list-action-btn" onclick="shareList('${list.id}')" title="Share">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+        </button>
+        <button class="list-action-btn" onclick="deleteSavedList('${list.id}')" title="Remove">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+        </button>
       </div>
     </div>
   `).join('');
@@ -705,7 +709,9 @@ async function renderItems() {
         <span class="category-name">${escapeHtml(group.category.name)}</span>
         <span class="category-count">(${group.items.length})</span>
         ${group.category.id !== null && group.category.id !== 'null' ? `
-          <button class="category-delete" onclick="deleteCategory('${group.category.id}')" title="Delete category">×</button>
+          <button class="category-delete" onclick="deleteCategory('${group.category.id}')" title="Delete category">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
         ` : ''}
       </div>
       <ul class="category-items">
@@ -713,7 +719,9 @@ async function renderItems() {
           <li class="item ${item.completed ? 'completed' : ''}">
             <div class="item-checkbox" onclick="toggleItem('${item.id}')"></div>
             <span class="item-text">${escapeHtml(item.text)}</span>
-            <button class="item-delete" onclick="deleteItem('${item.id}')">×</button>
+            <button class="item-delete" onclick="deleteItem('${item.id}')">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
           </li>
         `).join('')}
       </ul>
