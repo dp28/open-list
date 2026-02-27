@@ -14,6 +14,7 @@ let sortableInstance = null;
 // Initialize
 async function init() {
   await localDB.init();
+  await initTheme();
   
   // Load all saved lists
   await loadSavedLists();
@@ -315,7 +316,7 @@ function renderSavedLists() {
   const container = document.getElementById('saved-lists-container');
   
   if (savedLists.length === 0) {
-    container.innerHTML = '<p style="text-align: center; color: #999; padding: 20px;">No saved lists</p>';
+    container.innerHTML = '<p style="text-align: center; color: var(--text-muted); padding: 20px;">No saved lists</p>';
     return;
   }
   
@@ -1001,6 +1002,64 @@ function escapeHtml(text) {
 function generateId() {
   return Date.now().toString(36) + Math.random().toString(36).substr(2);
 }
+
+async function initTheme() {
+  const savedTheme = await localDB.getMeta('theme') || 'system';
+  applyTheme(savedTheme);
+  
+  document.querySelectorAll('.theme-option').forEach(option => {
+    option.classList.toggle('active', option.dataset.theme === savedTheme);
+    const radio = option.querySelector('input');
+    radio.checked = option.dataset.theme === savedTheme;
+  });
+}
+
+function applyTheme(theme) {
+  if (theme === 'system') {
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    document.documentElement.setAttribute('data-theme', prefersDark ? 'dark' : 'light');
+    document.querySelector('meta[name="theme-color"]').setAttribute('content', prefersDark ? '#1C2422' : '#6F978D');
+  } else {
+    document.documentElement.setAttribute('data-theme', theme);
+    document.querySelector('meta[name="theme-color"]').setAttribute('content', theme === 'dark' ? '#1C2422' : '#6F978D');
+  }
+}
+
+async function setTheme(theme) {
+  await localDB.setMeta('theme', theme);
+  applyTheme(theme);
+  
+  document.querySelectorAll('.theme-option').forEach(option => {
+    option.classList.toggle('active', option.dataset.theme === theme);
+  });
+}
+
+function showSettingsModal() {
+  const modal = document.getElementById('settings-modal');
+  modal.classList.remove('hidden');
+  
+  document.querySelectorAll('.theme-option').forEach(option => {
+    const radio = option.querySelector('input');
+    radio.onchange = (e) => setTheme(e.target.value);
+  });
+}
+
+function closeSettingsModal(event) {
+  if (event.target.classList.contains('modal-overlay')) {
+    event.target.classList.add('hidden');
+  }
+}
+
+function hideSettingsModal() {
+  document.getElementById('settings-modal').classList.add('hidden');
+}
+
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', async () => {
+  const savedTheme = await localDB.getMeta('theme') || 'system';
+  if (savedTheme === 'system') {
+    applyTheme('system');
+  }
+});
 
 // Start
 init();
