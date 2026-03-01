@@ -11,6 +11,6 @@
     "deploy": "wrangler deploy src/worker/index.js"
   },
   "devDependencies": {
-    "wrangler": "^3.0.0"
+    "wrangler": "^4.69.0"
   }
 }

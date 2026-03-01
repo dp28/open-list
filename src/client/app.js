@@ -102,6 +102,7 @@ async function init() {
   });
   
   registerServiceWorker();
+  setupPwaInstall();
   setupCategoryInput();
   
   const isCollapsed = await localDB.getMeta('addSectionCollapsed');
@@ -227,6 +228,62 @@ async function registerServiceWorker() {
   } catch (err) {
     console.error('SW registration failed:', err);
   }
+}
+
+let deferredPrompt = null;
+
+function setupPwaInstall() {
+  // Hide install button by default
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    
+    // Check if user has already dismissed or installed
+    const dismissed = localStorage.getItem('pwaInstallDismissed');
+    if (!dismissed && !window.matchMedia('(display-mode: standalone)').matches) {
+      showPwaInstallBanner();
+    }
+  });
+  
+  // Check if already installed
+  window.addEventListener('appinstalled', () => {
+    deferredPrompt = null;
+    hidePwaInstallBanner();
+  });
+}
+
+function showPwaInstallBanner() {
+  const banner = document.getElementById('pwa-install-banner');
+  if (banner) {
+    banner.classList.remove('hidden');
+  }
+}
+
+function hidePwaInstallBanner() {
+  const banner = document.getElementById('pwa-install-banner');
+  if (banner) {
+    banner.classList.add('hidden');
+  }
+}
+
+async function installPwa() {
+  if (!deferredPrompt) return;
+  
+  deferredPrompt.prompt();
+  const { outcome } = await deferredPrompt.userChoice;
+  
+  if (outcome === 'accepted') {
+    deferredPrompt = null;
+  } else if (outcome === 'dismissed') {
+    localStorage.setItem('pwaInstallDismissed', 'true');
+  }
+  
+  hidePwaInstallBanner();
+}
+
+function dismissPwaInstall() {
+  localStorage.setItem('pwaInstallDismissed', 'true');
+  hidePwaInstallBanner();
 }
 
 async function saveListsToStorage() {

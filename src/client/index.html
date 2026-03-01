@@ -6,7 +6,10 @@
   <meta name="theme-color" content="#4CAF50">
   <title>Shopping List</title>
   <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/svg+xml" href="icon-192.svg">
   <link rel="apple-touch-icon" href="icon-192.svg">
+  <link rel="apple-touch-icon" sizes="192x192" href="icon-192.svg">
+  <link rel="apple-touch-icon" sizes="512x512" href="icon-512.svg">
   <style>
     :root {
       --bg-0: #F4F7F6;
@@ -829,6 +832,54 @@
       border-radius: var(--radius-md);
       margin-bottom: 20px;
     }
+
+    /* PWA Install Banner */
+    .pwa-install-banner {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: var(--surface-1);
+      border-top: 1px solid var(--border-subtle);
+      padding: 12px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      z-index: 1001;
+      box-shadow: 0 -2px 8px rgba(0,0,0,0.1);
+    }
+
+    .pwa-install-banner span {
+      font-size: 14px;
+      color: var(--text-primary);
+    }
+
+    .pwa-install-actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .pwa-install-actions button {
+      padding: 8px 16px;
+      border-radius: var(--radius-md);
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+    }
+
+    .pwa-install-actions button:first-child {
+      background: var(--accent-color);
+      color: white;
+      border: none;
+    }
+
+    .pwa-install-actions button:last-child {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      padding: 4px 8px;
+    }
   </style>
 </head>
 <body>
@@ -990,6 +1041,17 @@
   </div>
   
   <div class="sync-indicator" id="sync-indicator">Syncing...</div>
+
+  <!-- PWA Install Banner -->
+  <div id="pwa-install-banner" class="pwa-install-banner hidden">
+    <span>Install app for offline access</span>
+    <div class="pwa-install-actions">
+      <button onclick="installPwa()">Install</button>
+      <button onclick="dismissPwaInstall()" aria-label="Dismiss">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+  </div>
 
   <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
   <script src="db.js"></script>
