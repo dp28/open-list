@@ -78,7 +78,7 @@ A simple, free, offline-capable shopping list for household use. Multiple users 
 #### Mobile-First Design
 - [x] Touch-friendly interface
 - [x] Responsive layout (mobile and desktop)
-- [x] Add to home screen support (PWA)
+- [x] Progressive web app install support
 - [x] Works without zooming on mobile
 
 #### Layout
@@ -189,7 +189,6 @@ A simple, free, offline-capable shopping list for household use. Multiple users 
 
 ## Backlog
 
-- Add progressive web app install prompt
 - Remember previous items (suggest completions when typing an item name based on previous items, and automatically select categories based on what that item had previously)
 
 ---
