@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192">
-  <rect width="192" height="192" fill="#4CAF50" rx="24"/>
+  <rect width="192" height="192" fill="#62887F" rx="24"/>
   <g fill="white">
     <rect x="32" y="40" width="128" height="16" rx="4"/>
     <rect x="32" y="72" width="96" height="12" rx="3" opacity="0.9"/>
@@ -7,7 +7,7 @@
     <rect x="32" y="112" width="80" height="12" rx="3" opacity="0.9"/>
     <rect x="32" y="132" width="104" height="12" rx="3" opacity="0.9"/>
     <!-- Checkboxes -->
-    <rect x="44" y="48" width="12" height="12" rx="2" fill="#4CAF50" stroke="white" stroke-width="2"/>
+    <rect x="44" y="48" width="12" height="12" rx="2" fill="#62887F" stroke="white" stroke-width="2"/>
     <path d="M46 54l3 3 6-6" stroke="white" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
   </g>
 </svg>
