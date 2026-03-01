@@ -32,13 +32,19 @@ A simple, free, offline-capable shopping list for household use. Multiple users 
 ### Core Features
 
 #### Shopping List Management
-- [x] Create multiple lists (each with unique ID and PIN)
-- [x] Join existing lists via ID and PIN
+- [x] Create multiple lists (signed in user owns lists)
+- [x] Join existing lists via share (owner shares with email)
 - [x] Add items to list with text input
 - [x] Mark items as complete/incomplete
 - [x] Delete items
 - [x] View all items in a list
 - [x] Bulk delete all completed items with one click
+
+#### User Accounts & Authentication
+- [x] Sign in with Google OAuth
+- [x] Persistent sessions across devices
+- [x] User profile in settings (name, email, picture)
+- [x] Sign out functionality
 
 #### Categories
 - [x] Assign items to categories
@@ -59,10 +65,13 @@ A simple, free, offline-capable shopping list for household use. Multiple users 
 - [x] Background sync via Service Worker
 
 #### Multi-User / Sharing
-- [x] Multiple users can access same list via ID + PIN
+- [x] Private-by-default (users only see their own lists)
+- [x] Share lists with other users via email
+- [x] Owner and collaborator roles
+- [x] Manage collaborators (view/remove access)
+- [x] Share list via URL
 - [x] Real-time sync between devices
 - [x] Conflict resolution (server timestamp wins)
-- [x] Share list via URL with embedded ID
 
 ### UI/UX Requirements
 
@@ -79,10 +88,12 @@ A simple, free, offline-capable shopping list for household use. Multiple users 
 - [x] Side-by-side layout on desktop (>600px)
 - [x] Collapsible "Add New Item" section
 - [x] Section state persisted locally
+- [x] Theme selector in settings (System/Light/Dark)
 
 #### Visual Design
 - [x] Clean, minimal interface
 - [x] Green theme color (#4CAF50)
+- [x] Dark mode support (system/light/dark)
 - [x] Clear visual hierarchy
 - [x] Compact category grouping
 - [x] Drag handles for reordering (⋮⋮)
@@ -102,13 +113,15 @@ A simple, free, offline-capable shopping list for household use. Multiple users 
 ### Backend
 - **Runtime**: Cloudflare Workers (V8 isolates)
 - **API**: RESTful endpoints
-- **Authentication**: List ID + PIN in headers
+- **Authentication**: Google OAuth Bearer token
 - **CORS**: Enabled for all origins
 
 ### Database
 - **Type**: Cloudflare D1 (SQLite)
 - **Tables**:
-  - `lists` - List metadata
+  - `users` - User accounts (Google OAuth)
+  - `lists` - List metadata with owner reference
+  - `list_shares` - Collaborator access
   - `items` - Shopping items with category support
   - `categories` - Category definitions with sort order
 - **Soft Deletes**: All records use deleted flag (no hard deletes)
@@ -122,7 +135,8 @@ A simple, free, offline-capable shopping list for household use. Multiple users 
 - **Conflict Resolution**: Server time overrides client time
 
 ### Security
-- **No user accounts** - Shared secret (PIN) per list
+- **Google OAuth** - User authentication via Google
+- **Per-list permissions** - Owner and collaborator roles
 - **HTTPS only** - Enforced by Cloudflare
 - **CORS headers** - Properly configured
 - **No sensitive data** - Shopping items only
@@ -175,13 +189,8 @@ A simple, free, offline-capable shopping list for household use. Multiple users 
 
 ## Backlog
 
-- Fix category reordering (drag and drop does not seem to work)
-- Add dark mode
-- Redesign to make UI more compact
 - Add progressive web app install prompt
 - Remember previous items (suggest completions when typing an item name based on previous items, and automatically select categories based on what that item had previously)
-- Use Single Sign On with Google instead of a pin
-- Stop showing the list id (move it to the URL)
 
 ---
 
@@ -205,12 +214,14 @@ A simple, free, offline-capable shopping list for household use. Multiple users 
 - Bulk deletes all completed items with confirmation
 - Syncs deletions across devices
 
-### 2026-02-14 (latest)
-- **CRITICAL FIX**: Categories table was missing from database - created migration
-- Fixed category sync between devices (categories now properly sync)
-- Fixed category dropdown resetting during sync while user is creating new category
-- Fixed category IDs not being sent with items in sync
-- Added debugging to trace sync issues
+### 2026-02-27
+- Migrated from PIN-based authentication to Google OAuth
+- Added user accounts (Google sign-in)
+- Changed to private-by-default model (lists owned by users)
+- Added sharing with collaborators (email-based)
+- Added dark mode support with theme selector
+- Redesigned UI for compact layout
+- Added responsive grid (1 col mobile, 2 col tablet, 3 col desktop)
 
 ---
 
