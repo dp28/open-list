@@ -751,18 +751,6 @@ function getCategoryName(categoryId) {
   const category = categories.find(c => c.id === categoryId);
   return category ? category.name : '';
 }
-    }
-  });
-  
-  categorySelect.addEventListener('change', (e) => {
-    if (e.target.value === '__new__') {
-      newCategoryInput.classList.remove('hidden');
-      newCategoryInput.focus();
-    } else {
-      newCategoryInput.classList.add('hidden');
-    }
-  });
-}
 
 async function addItem(event) {
   event.preventDefault();
