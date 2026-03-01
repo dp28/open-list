@@ -681,27 +681,187 @@
       font-size: 14px;
       font-weight: 500;
     }
+
+    /* Login Screen */
+    .login-screen {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 20px;
+      text-align: center;
+    }
+
+    .login-screen h1 {
+      font-size: 28px;
+      margin-bottom: 8px;
+      color: var(--text-primary);
+    }
+
+    .login-screen p {
+      color: var(--text-secondary);
+      margin-bottom: 32px;
+    }
+
+    .google-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      width: 100%;
+      max-width: 300px;
+      padding: 14px 24px;
+      background: white;
+      color: #333;
+      border: 1px solid #dadce0;
+      border-radius: 24px;
+      font-size: 16px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: box-shadow 0.2s;
+    }
+
+    .google-btn:hover {
+      box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+    }
+
+    .google-btn svg {
+      width: 20px;
+      height: 20px;
+    }
+
+    /* No Lists Screen */
+    .no-lists-screen {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: calc(100vh - 100px);
+      padding: 20px;
+      text-align: center;
+    }
+
+    .no-lists-screen h2 {
+      font-size: 22px;
+      margin-bottom: 12px;
+      color: var(--text-primary);
+    }
+
+    .no-lists-screen p {
+      color: var(--text-secondary);
+      margin-bottom: 24px;
+    }
+
+    .no-lists-screen button {
+      padding: 14px 32px;
+      background: var(--accent-color);
+      color: white;
+      border: none;
+      border-radius: var(--radius-full);
+      font-size: 16px;
+      font-weight: 500;
+      cursor: pointer;
+    }
+
+    /* Share Section */
+    .share-user-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .share-avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+    }
+
+    .share-avatar-placeholder {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: var(--bg-tertiary);
+    }
+
+    .share-user-name {
+      font-weight: 600;
+      font-size: 14px;
+    }
+
+    .share-user-email {
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    .share-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      margin-bottom: 8px;
+    }
+
+    .share-section-input {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+
+    .share-section-input input {
+      flex: 1;
+    }
+
+    .share-section-input button {
+      width: auto !important;
+      padding: 10px 16px !important;
+    }
+
+    /* User info in settings */
+    #settings-user-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px;
+      background: var(--bg-tertiary);
+      border-radius: var(--radius-md);
+      margin-bottom: 20px;
+    }
   </style>
 </head>
 <body>
-  <div id="setup-modal" class="modal-overlay hidden">
-    <div class="modal">
-      <h2>Shopping List</h2>
-      <div class="tabs">
-        <button class="tab active" onclick="showSetupTab('create')">New List</button>
-        <button class="tab" onclick="showSetupTab('join')">Join List</button>
-      </div>
+  <!-- Login Screen -->
+  <div id="login-screen" class="login-screen hidden">
+    <h1>Shopping List</h1>
+    <p>Sign in to create and share lists</p>
+    <button class="google-btn" onclick="signInWithGoogle()">
+      <svg viewBox="0 0 24 24">
+        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+      </svg>
+      Sign in with Google
+    </button>
+  </div>
+
+  <!-- No Lists Screen -->
+  <div id="no-lists-screen" class="no-lists-screen hidden">
+    <h2>Welcome!</h2>
+    <p>Create your first list to get started</p>
+    <button onclick="showCreateNewListModal()">Create First List</button>
+  </div>
+
+  <!-- Setup Modal -->
+  <div id="setup-modal" class="modal-overlay hidden" onclick="closeSetupModal(event)">
+    <div class="modal" onclick="event.stopPropagation()">
+      <h2>Create New List</h2>
       
-      <div id="create-tab">
+      <div id="create-list-section">
         <input type="text" id="new-list-name" placeholder="List name (e.g., Groceries)" maxlength="50">
-        <input type="password" id="new-list-pin" placeholder="Create a PIN" maxlength="20">
         <button onclick="createList()">Create List</button>
-      </div>
-      
-      <div id="join-tab" class="hidden">
-        <input type="text" id="join-list-id" placeholder="List ID" maxlength="32">
-        <input type="password" id="join-list-pin" placeholder="PIN" maxlength="20">
-        <button onclick="joinList()">Join List</button>
       </div>
     </div>
   </div>
@@ -725,12 +885,21 @@
     <div class="modal" onclick="event.stopPropagation()">
       <h2>Share List</h2>
       <p class="share-info" id="share-list-name"></p>
-      <div class="share-url-container">
-        <input type="text" id="share-url" readonly>
-        <button onclick="copyShareUrl()" class="copy-btn">Copy</button>
+      
+      <div id="share-section">
+        <div class="share-section-input">
+          <input type="email" id="share-email" placeholder="Enter email address">
+          <button onclick="shareListWithEmail()">Share</button>
+        </div>
+        <button onclick="showListShares(currentList.id)" class="secondary" style="width: 100%; padding: 10px; background: var(--bg-tertiary); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); color: var(--text-primary); cursor: pointer;">Manage Collaborators</button>
       </div>
+      
+      <div id="shares-list-section" class="hidden">
+        <div id="shares-list-container"></div>
+        <button onclick="showShareModal()" style="margin-top: 12px; width: 100%; padding: 10px; background: var(--bg-tertiary); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); color: var(--text-primary); cursor: pointer;">Back to Share</button>
+      </div>
+      
       <div class="modal-actions">
-        <button onclick="shareViaNative()" id="native-share-btn" class="hidden">Share via App</button>
         <button onclick="hideShareModal()">Close</button>
       </div>
     </div>
@@ -740,6 +909,9 @@
   <div id="settings-modal" class="modal-overlay hidden" onclick="closeSettingsModal(event)">
     <div class="modal" onclick="event.stopPropagation()">
       <h2>Settings</h2>
+      
+      <div id="settings-user-info" class="hidden"></div>
+      
       <div class="settings-section">
         <h3>Theme</h3>
         <div class="theme-options">
@@ -757,7 +929,9 @@
           </label>
         </div>
       </div>
+      
       <div class="modal-actions">
+        <button onclick="signOut()" style="background: var(--danger-color);">Sign Out</button>
         <button onclick="hideSettingsModal()">Done</button>
       </div>
     </div>

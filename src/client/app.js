@@ -1,9 +1,10 @@
-// Main app logic - PWA shopping list with categories
-// Works offline, syncs when online
+// Main app logic - PWA shopping list with Google OAuth
+// Private-by-default with sharing
 
 const API_URL = window.location.origin;
 const localDB = new LocalDB();
 
+let currentUser = null;
 let currentList = null;
 let savedLists = [];
 let syncInterval = null;
@@ -16,26 +17,79 @@ async function init() {
   await localDB.init();
   await initTheme();
   
-  // Load all saved lists
+  // Check for OAuth callback - token stored in localStorage by callback page
+  const storedToken = localStorage.getItem('authToken');
+  const storedUser = localStorage.getItem('authUser');
+  const tokenExpiry = localStorage.getItem('tokenExpiry');
+  
+  // Clear from localStorage after reading
+  localStorage.removeItem('authToken');
+  localStorage.removeItem('authUser');
+  localStorage.removeItem('tokenExpiry');
+  
+  let token = storedToken;
+  let user = storedUser ? JSON.parse(storedUser) : null;
+  
+  // Check if token is expired
+  if (token && tokenExpiry && parseInt(tokenExpiry) < Date.now()) {
+    token = null;
+    user = null;
+  }
+  
+  if (!token || !user) {
+    // Try IndexedDB as fallback
+    user = await localDB.getAuthUser();
+    token = await localDB.getAuthToken();
+  }
+  
+  if (!user || !token) {
+    // Show login screen
+    showLoginScreen();
+    return;
+  }
+  
+  // Verify token with backend
+  try {
+    const response = await fetch(`${API_URL}/api/user`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    
+    if (!response.ok) {
+      // Token invalid, show login
+      showLoginScreen();
+      return;
+    }
+    
+    const data = await response.json();
+    currentUser = data.user;
+    await localDB.saveAuth(currentUser, token);
+  } catch (e) {
+    showLoginScreen();
+    return;
+  }
+  
+  // Load user's lists
   await loadSavedLists();
   
-  // Check for URL parameters first (shared list link)
+  // Check for URL parameters (shared list link)
   const urlParams = new URLSearchParams(window.location.search);
   const sharedListId = urlParams.get('list');
   
   if (sharedListId) {
-    // Pre-fill the join modal with the list ID
-    document.getElementById('join-list-id').value = sharedListId;
-    showSetupTab('join');
-    document.getElementById('setup-modal').classList.remove('hidden');
+    // Try to access the shared list
+    try {
+      await openList(sharedListId);
+    } catch (e) {
+      alert('Cannot access list. You may not have permission.');
+    }
   } else if (savedLists.length > 0) {
     // Load the most recently used list
     const lastUsedList = await localDB.getMeta('lastUsedListId');
     const listToLoad = savedLists.find(l => l.id === lastUsedList) || savedLists[0];
     await switchToList(listToLoad);
   } else {
-    // Show setup modal for new users
-    document.getElementById('setup-modal').classList.remove('hidden');
+    // Show empty state or create first list
+    showCreateFirstListPrompt();
   }
   
   // Listen for online/offline
@@ -47,50 +101,123 @@ async function init() {
     showSyncStatus('Offline mode', true);
   });
   
-  // Register service worker with update handling
   registerServiceWorker();
-  
-  // Setup category input listeners
   setupCategoryInput();
   
-  // Initialize add section state
   const isCollapsed = await localDB.getMeta('addSectionCollapsed');
   if (isCollapsed) {
     toggleAddSection(true);
   }
 }
 
-// Load saved lists from storage
-async function loadSavedLists() {
-  savedLists = await localDB.getMeta('savedLists') || [];
+function showLoginScreen() {
+  document.getElementById('login-screen').classList.remove('hidden');
 }
 
-// Register service worker and handle updates
+function hideLoginScreen() {
+  document.getElementById('login-screen').classList.add('hidden');
+}
+
+function showCreateFirstListPrompt() {
+  document.getElementById('no-lists-screen').classList.remove('hidden');
+}
+
+function hideCreateFirstListPrompt() {
+  document.getElementById('no-lists-screen').classList.add('hidden');
+}
+
+async function signInWithGoogle() {
+  try {
+    // Get auth URL template from backend
+    const response = await fetch(`${API_URL}/api/auth/google`);
+    const { authUrl } = await response.json();
+    
+    // Replace placeholder with actual origin
+    const actualAuthUrl = authUrl.replace('REPLACE_WITH_ORIGIN', `${window.location.origin}/auth/callback`);
+    
+    // Redirect to Google for authentication
+    window.location.href = actualAuthUrl;
+  } catch (err) {
+    console.error('Sign in error:', err);
+    alert('Sign in failed. Please try again.');
+  }
+}
+
+// Handle OAuth callback from popup
+async function handleOAuthCallback(hash) {
+  const params = new URLSearchParams(hash.substring(1));
+  const accessToken = params.get('access_token');
+  const expiresIn = params.get('expires_in');
+  
+  if (!accessToken) {
+    return { error: 'No access token' };
+  }
+  
+  // Get user info
+  const userInfoRes = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+    headers: { 'Authorization': `Bearer ${accessToken}` }
+  });
+  
+  if (!userInfoRes.ok) {
+    return { error: 'Failed to get user info' };
+  }
+  
+  const userInfo = await userInfoRes.json();
+  
+  // Send to our backend to create/update user
+  const response = await fetch(`${API_URL}/api/auth/callback${hash}`);
+  const data = await response.json();
+  
+  if (data.error) {
+    return { error: data.error };
+  }
+  
+  return { user: data.user, accessToken };
+}
+
+async function signOut() {
+  await localDB.clearAuth();
+  currentUser = null;
+  currentList = null;
+  savedLists = [];
+  showLoginScreen();
+}
+
+// Load saved lists from server
+async function loadSavedLists() {
+  const token = await localDB.getAuthToken();
+  const response = await fetch(`${API_URL}/api/lists`, {
+    headers: { 'Authorization': `Bearer ${token}` }
+  });
+  
+  if (response.ok) {
+    const data = await response.json();
+    savedLists = data.lists || [];
+    await localDB.setMeta('savedLists', savedLists);
+  }
+}
+
 async function registerServiceWorker() {
   if (!('serviceWorker' in navigator)) return;
   
   try {
     const registration = await navigator.serviceWorker.register('sw.js');
     
-    // Check for updates periodically
     setInterval(() => {
       registration.update();
-    }, 60000); // Check every minute
+    }, 60000);
     
-    // Handle updates
     registration.addEventListener('updatefound', () => {
       const newWorker = registration.installing;
       
       newWorker.addEventListener('statechange', () => {
         if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-          // New version available - reload to activate
           console.log('New version available, reloading...');
           window.location.reload();
         }
       });
     });
     
-    // Listen for messages from service worker
     navigator.serviceWorker.addEventListener('message', (event) => {
       if (event.data.type === 'SYNC_NOW') {
         syncNow();
@@ -102,12 +229,10 @@ async function registerServiceWorker() {
   }
 }
 
-// Save lists to storage
 async function saveListsToStorage() {
   await localDB.setMeta('savedLists', savedLists);
 }
 
-// Add or update a list in saved lists
 async function addOrUpdateSavedList(listInfo) {
   const existingIndex = savedLists.findIndex(l => l.id === listInfo.id);
   if (existingIndex >= 0) {
@@ -118,50 +243,40 @@ async function addOrUpdateSavedList(listInfo) {
   await saveListsToStorage();
 }
 
-// Remove a list from saved lists
 async function removeSavedList(listId) {
   savedLists = savedLists.filter(l => l.id !== listId);
   await saveListsToStorage();
   
-  // If we removed the current list, switch to another one or show setup
   if (currentList && currentList.id === listId) {
     if (savedLists.length > 0) {
       await switchToList(savedLists[0]);
     } else {
       currentList = null;
       if (syncInterval) clearInterval(syncInterval);
-      document.getElementById('setup-modal').classList.remove('hidden');
+      showCreateFirstListPrompt();
     }
   }
 }
 
-// Switch to a specific list
 async function switchToList(listInfo) {
-  // Stop current sync
   if (syncInterval) clearInterval(syncInterval);
   
   currentList = listInfo;
   await localDB.setMeta('lastUsedListId', listInfo.id);
   await addOrUpdateSavedList(listInfo);
   
-  // Clear current data and load list-specific data
   categories = [];
   await loadListData(listInfo.id);
   
-  // Update UI
-  document.getElementById('setup-modal').classList.add('hidden');
+  hideCreateFirstListPrompt();
   await loadData();
   startSync();
 }
 
-// Load list-specific data from local DB
 async function loadListData(listId) {
-  // The data is already stored list-specific in the DB
-  // We just need to reload categories
   categories = await localDB.getCategories();
 }
 
-// Toggle add section visibility
 async function toggleAddSection(forceCollapse = null) {
   const toggleBtn = document.getElementById('add-toggle');
   const form = document.getElementById('add-form');
@@ -176,43 +291,36 @@ async function toggleAddSection(forceCollapse = null) {
     form.classList.remove('collapsed');
     toggleBtn.classList.remove('collapsed');
     await localDB.setMeta('addSectionCollapsed', false);
-    // Focus on item input when expanding
     document.getElementById('new-item').focus();
   }
 }
 
-// UI Helpers
-function showSetupTab(tab) {
-  document.querySelectorAll('#setup-modal .tab').forEach(t => t.classList.remove('active'));
-  event.target.classList.add('active');
-  
-  document.getElementById('create-tab').classList.toggle('hidden', tab !== 'create');
-  document.getElementById('join-tab').classList.toggle('hidden', tab !== 'join');
-}
-
 async function createList() {
   const name = document.getElementById('new-list-name').value.trim();
-  const pin = document.getElementById('new-list-pin').value.trim();
   
-  if (!name || !pin) {
-    alert('Please enter a name and PIN');
+  if (!name) {
+    alert('Please enter a list name');
     return;
   }
+  
+  const token = await localDB.getAuthToken();
   
   try {
     const response = await fetch(`${API_URL}/api/list`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, pin })
+      headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ name })
     });
     
     const data = await response.json();
     if (data.error) throw new Error(data.error);
     
-    const newList = { id: data.id, name, pin };
+    const newList = { id: data.id, name, access: data.access };
     await addOrUpdateSavedList(newList);
     
-    // Save default category
     await localDB.saveCategory({
       id: data.defaultCategoryId,
       name: 'Uncategorized',
@@ -220,80 +328,62 @@ async function createList() {
       updatedAt: new Date().toISOString()
     });
     
-    // Clear form
     document.getElementById('new-list-name').value = '';
-    document.getElementById('new-list-pin').value = '';
     
     await switchToList(newList);
-    
-    // Show share modal after creating
     showShareModal();
   } catch (err) {
     alert('Error: ' + err.message);
   }
 }
 
-async function joinList() {
-  const id = document.getElementById('join-list-id').value.trim();
-  const pin = document.getElementById('join-list-pin').value.trim();
+async function openList(listId) {
+  const token = await localDB.getAuthToken();
   
-  if (!id || !pin) {
-    alert('Please enter list ID and PIN');
-    return;
-  }
+  const response = await fetch(`${API_URL}/api/list/${listId}`, {
+    headers: { 'Authorization': `Bearer ${token}` }
+  });
   
-  try {
-    const response = await fetch(`${API_URL}/api/list`, {
-      headers: {
-        'X-List-ID': id,
-        'X-List-PIN': pin
-      }
+  const data = await response.json();
+  if (data.error) throw new Error(data.error);
+  
+  const listInfo = { id: data.id, name: data.name, access: data.access };
+  await addOrUpdateSavedList(listInfo);
+  
+  await localDB.clearItems();
+  await localDB.clearCategories();
+  
+  for (const item of data.items) {
+    await localDB.saveItem({
+      id: item.id,
+      text: item.text,
+      categoryId: item.categoryId,
+      completed: item.completed,
+      updatedAt: item.updatedAt
     });
-    
-    const data = await response.json();
-    if (data.error) throw new Error(data.error);
-    
-    const joinedList = { id, name: data.name, pin };
-    await addOrUpdateSavedList(joinedList);
-    
-    // Save server data locally
-    await localDB.clearItems();
-    await localDB.clearCategories();
-    
-    for (const item of data.items) {
-      await localDB.saveItem({
-        id: item.id,
-        text: item.text,
-        categoryId: item.categoryId,
-        completed: item.completed,
-        updatedAt: item.updatedAt
-      });
-    }
-    
-    for (const category of data.categories) {
-      await localDB.saveCategory({
-        id: category.id,
-        name: category.name,
-        sortOrder: category.sortOrder,
-        updatedAt: new Date().toISOString()
-      });
-    }
-    
-    // Clear form
-    document.getElementById('join-list-id').value = '';
-    document.getElementById('join-list-pin').value = '';
-    
-    await switchToList(joinedList);
-  } catch (err) {
-    alert('Error: ' + err.message);
   }
+  
+  for (const category of data.categories) {
+    await localDB.saveCategory({
+      id: category.id,
+      name: category.name,
+      sortOrder: category.sortOrder,
+      updatedAt: new Date().toISOString()
+    });
+  }
+  
+  await switchToList(listInfo);
 }
 
-// Show create new list modal from within the app
 function showCreateNewListModal() {
   hideListSwitcher();
-  showSetupTab('create');
   document.getElementById('setup-modal').classList.remove('hidden');
+  document.getElementById('setup-modal').querySelector('h2').textContent = 'Create New List';
+  document.getElementById('create-list-section').classList.remove('hidden');
+}
+
+function hideSetupModal() {
+  document.getElementById('setup-modal').classList.add('hidden');
 }
 
 // List Switcher Modal
@@ -316,11 +406,10 @@ function renderSavedLists() {
   const container = document.getElementById('saved-lists-container');
   
   if (savedLists.length === 0) {
-    container.innerHTML = '<p style="text-align: center; color: var(--text-muted); padding: 20px;">No saved lists</p>';
+    container.innerHTML = '<p style="text-align: center; color: var(--text-muted); padding: 20px;">No lists yet</p>';
     return;
   }
   
-  // Sort by last accessed (most recent first)
   const sortedLists = [...savedLists].sort((a, b) => (b.lastAccessed || 0) - (a.lastAccessed || 0));
   
   container.innerHTML = sortedLists.map(list => `
@@ -328,12 +417,19 @@ function renderSavedLists() {
          onclick="selectListFromSwitcher('${list.id}')">
       <div class="saved-list-info">
         <div class="saved-list-name">${escapeHtml(list.name)}</div>
-        <div class="saved-list-id">ID: ${list.id}</div>
+        <div class="saved-list-id">${list.access === 'owner' ? 'Owner' : 'Collaborator'}</div>
       </div>
       <div class="saved-list-actions" onclick="event.stopPropagation()">
-        <button class="list-action-btn" onclick="shareList('${list.id}')" title="Share">
+        ${list.access === 'owner' ? `
+        <button class="list-action-btn" onclick="showShareListModal('${list.id}')" title="Share">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
         </button>
+        ` : ''}
+        ${list.access === 'owner' ? `
+        <button class="list-action-btn" onclick="showListShares('${list.id}')" title="Manage shares">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        </button>
+        ` : ''}
         <button class="list-action-btn" onclick="deleteSavedList('${list.id}')" title="Remove">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
         </button>
@@ -345,13 +441,16 @@ function renderSavedLists() {
 async function selectListFromSwitcher(listId) {
   const list = savedLists.find(l => l.id === listId);
   if (list && (!currentList || currentList.id !== listId)) {
-    await switchToList(list);
+    await openList(listId);
   }
   hideListSwitcher();
 }
 
 async function deleteSavedList(listId) {
-  if (!confirm('Remove this list from your device? You can re-join it later with the ID and PIN.')) {
+  const list = savedLists.find(l => l.id === listId);
+  const accessText = list?.access === 'owner' ? 'This will remove the list from your device.' : 'This will remove the shared list from your device.';
+  
+  if (!confirm(accessText)) {
     return;
   }
   
@@ -363,19 +462,79 @@ async function deleteSavedList(listId) {
 function showShareModal() {
   if (!currentList) return;
   
-  const shareUrl = `${window.location.origin}?list=${currentList.id}`;
   document.getElementById('share-list-name').textContent = currentList.name;
-  document.getElementById('share-url').value = shareUrl;
-  
-  // Show native share button if available
-  const nativeShareBtn = document.getElementById('native-share-btn');
-  if (navigator.share) {
-    nativeShareBtn.classList.remove('hidden');
-  } else {
-    nativeShareBtn.classList.add('hidden');
-  }
+  document.getElementById('share-email').value = '';
+  document.getElementById('share-section').classList.remove('hidden');
+  document.getElementById('shares-list-section').classList.add('hidden');
   
   document.getElementById('share-modal').classList.remove('hidden');
+}
+
+async function showShareListModal(listId) {
+  const list = savedLists.find(l => l.id === listId);
+  if (!list) return;
+  
+  currentList = list;
+  showShareModal();
+  
+  const originalHide = hideShareModal;
+  hideShareModal = function() {
+    originalHide();
+    hideShareModal = originalHide;
+  };
+}
+
+async function showListShares(listId) {
+  const token = await localDB.getAuthToken();
+  
+  try {
+    const response = await fetch(`${API_URL}/api/list/${listId}/shares`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    
+    const data = await response.json();
+    
+    const list = savedLists.find(l => l.id === listId);
+    currentList = list;
+    
+    document.getElementById('share-list-name').textContent = list.name;
+    document.getElementById('shares-list-section').classList.remove('hidden');
+    document.getElementById('share-section').classList.add('hidden');
+    
+    const sharesContainer = document.getElementById('shares-list-container');
+    
+    if (!data.shares || data.shares.length === 0) {
+      sharesContainer.innerHTML = '<p style="text-align: center; color: var(--text-muted); padding: 20px;">No collaborators yet</p>';
+    } else {
+      sharesContainer.innerHTML = data.shares.map(share => `
+        <div class="share-item">
+          <div class="share-user-info">
+            ${share.picture ? `<img src="${escapeHtml(share.picture)}" class="share-avatar">` : '<div class="share-avatar-placeholder"></div>'}
+            <div>
+              <div class="share-user-name">${escapeHtml(share.name || share.email)}</div>
+              <div class="share-user-email">${escapeHtml(share.email)}</div>
+            </div>
+          </div>
+          <button class="list-action-btn" onclick="removeShare('${listId}', '${share.id}')" title="Remove access">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+      `).join('');
+    }
+    
+    document.getElementById('share-modal').classList.remove('hidden');
+    
+    const originalHide = hideShareModal;
+    hideShareModal = function() {
+      document.getElementById('share-section').classList.remove('hidden');
+      document.getElementById('shares-list-section').classList.add('hidden');
+      originalHide();
+      hideShareModal = originalHide;
+    };
+    
+  } catch (err) {
+    alert('Error: ' + err.message);
+  }
 }
 
 function hideShareModal() {
@@ -388,70 +547,69 @@ function closeShareModal(event) {
   }
 }
 
-async function copyShareUrl() {
-  const shareUrlInput = document.getElementById('share-url');
-  shareUrlInput.select();
+async function shareListWithEmail() {
+  const email = document.getElementById('share-email').value.trim();
+  
+  if (!email) {
+    alert('Please enter an email address');
+    return;
+  }
+  
+  if (!currentList || currentList.access !== 'owner') {
+    alert('Only the owner can share lists');
+    return;
+  }
+  
+  const token = await localDB.getAuthToken();
   
   try {
-    await navigator.clipboard.writeText(shareUrlInput.value);
-    const copyBtn = document.querySelector('.copy-btn');
-    const originalText = copyBtn.textContent;
-    copyBtn.textContent = 'Copied!';
-    setTimeout(() => {
-      copyBtn.textContent = originalText;
-    }, 2000);
+    const response = await fetch(`${API_URL}/api/list/${currentList.id}/share`, {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ email })
+    });
+    
+    const data = await response.json();
+    if (data.error) throw new Error(data.error);
+    
+    alert(`List shared with ${email}`);
+    document.getElementById('share-email').value = '';
+    
+    // Refresh shares
+    showListShares(currentList.id);
   } catch (err) {
-    // Fallback for older browsers
-    document.execCommand('copy');
-    alert('Link copied to clipboard!');
+    alert('Error: ' + err.message);
   }
 }
 
-async function shareViaNative() {
-  if (!currentList) return;
+async function removeShare(listId, shareUserId) {
+  if (!confirm('Remove this user\'s access to the list?')) {
+    return;
+  }
   
-  const shareUrl = `${window.location.origin}?list=${currentList.id}`;
+  const token = await localDB.getAuthToken();
   
-  if (navigator.share) {
-    try {
-      await navigator.share({
-        title: `Join ${currentList.name}`,
-        text: `Join my shopping list "${currentList.name}"`,
-        url: shareUrl
-      });
-    } catch (err) {
-      // User cancelled or share failed
-      console.log('Share cancelled or failed:', err);
-    }
+  try {
+    await fetch(`${API_URL}/api/list/${listId}/share/${shareUserId}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    
+    // Refresh shares
+    showListShares(listId);
+  } catch (err) {
+    alert('Error: ' + err.message);
   }
 }
 
-// Share a specific list (used from list switcher)
-function shareList(listId) {
-  const list = savedLists.find(l => l.id === listId);
-  if (!list) return;
-  
-  // Temporarily set as current for sharing, then restore
-  const previousList = currentList;
-  currentList = list;
-  showShareModal();
-  
-  // Restore when modal closes
-  const originalHide = hideShareModal;
-  hideShareModal = function() {
-    currentList = previousList;
-    originalHide();
-    hideShareModal = originalHide;
-  };
-}
-
-// Category input with auto-suggest
 function setupCategoryInput() {
   const itemInput = document.getElementById('new-item');
   const categorySelect = document.getElementById('category-select');
   const newCategoryInput = document.getElementById('new-category');
   
-  // Auto-suggest category when typing item
   itemInput.addEventListener('input', async (e) => {
     const text = e.target.value.trim();
     if (text.length > 2) {
@@ -462,7 +620,6 @@ function setupCategoryInput() {
     }
   });
   
-  // Handle "New category" selection
   categorySelect.addEventListener('change', (e) => {
     if (e.target.value === '__new__') {
       newCategoryInput.classList.remove('hidden');
@@ -485,7 +642,6 @@ async function addItem(event) {
   
   let categoryId = categorySelect.value;
   
-  // Handle empty selection - use first category or null
   if (!categoryId || categoryId === '') {
     if (categories.length > 0) {
       categoryId = categories[0].id;
@@ -494,7 +650,6 @@ async function addItem(event) {
     }
   }
   
-  // Handle new category
   if (categoryId === '__new__') {
     const newName = newCategoryInput.value.trim();
     if (!newName) {
@@ -502,12 +657,10 @@ async function addItem(event) {
       return;
     }
     
-    // Check if category already exists
     const existing = await localDB.getCategoryByName(newName);
     if (existing) {
       categoryId = existing.id;
     } else {
-      // Create new category
       categoryId = generateId();
       const maxOrder = categories.length > 0 ? Math.max(...categories.map(c => c.sortOrder)) : -1;
       const timestamp = new Date().toISOString();
@@ -531,7 +684,6 @@ async function addItem(event) {
       categories.push(newCategory);
       updateCategoryDropdown();
       
-      // Select the newly created category
       categorySelect.value = categoryId;
     }
     
@@ -547,7 +699,6 @@ async function addItem(event) {
     updatedAt: new Date().toISOString()
   };
   
-  // Save locally first
   await localDB.saveItem(item);
   await localDB.queueChange({
     type: 'add',
@@ -562,7 +713,6 @@ async function addItem(event) {
   await renderItems();
   updateCategoryDropdown();
   
-  // Try to sync immediately
   if (navigator.onLine) {
     syncNow();
   }
@@ -618,7 +768,7 @@ async function clearCompletedItems() {
   const completedItems = items.filter(item => item.completed);
   
   if (completedItems.length === 0) {
-    return; // No completed items to clear
+    return;
   }
   
   if (!confirm(`Delete ${completedItems.length} completed item${completedItems.length === 1 ? '' : 's'}?`)) {
@@ -627,7 +777,6 @@ async function clearCompletedItems() {
   
   const timestamp = new Date().toISOString();
   
-  // Mark all completed items as deleted
   for (const item of completedItems) {
     await localDB.saveItem({
       id: item.id,
@@ -650,7 +799,7 @@ async function clearCompletedItems() {
 
 async function loadData() {
   document.getElementById('list-title').textContent = currentList.name;
-  document.getElementById('list-info').textContent = `ID: ${currentList.id}`;
+  document.getElementById('list-info').textContent = currentList.access === 'owner' ? 'Owner' : 'Collaborator';
   categories = await localDB.getCategories();
   await renderItems();
   updateCategoryDropdown();
@@ -669,13 +818,11 @@ async function renderItems() {
   
   empty.classList.add('hidden');
   
-  // Group items by category
   const itemsByCategory = {};
   categories.forEach(cat => {
     itemsByCategory[cat.id] = { category: cat, items: [] };
   });
   
-  // Add Uncategorized group if not exists
   if (!itemsByCategory['null']) {
     itemsByCategory['null'] = { 
       category: { id: null, name: 'Uncategorized', sortOrder: 999 }, 
@@ -694,12 +841,10 @@ async function renderItems() {
     itemsByCategory[catId].items.push(item);
   });
   
-  // Sort categories by sortOrder
   const sortedCategories = Object.values(itemsByCategory)
     .filter(group => group.items.length > 0)
     .sort((a, b) => a.category.sortOrder - b.category.sortOrder);
   
-  // Render compact grouped view
   container.innerHTML = sortedCategories.map((group, index) => `
     <div class="category-group ${group.category.id === null ? 'uncategorized' : ''}" 
          data-category-id="${group.category.id || 'null'}"
@@ -728,7 +873,6 @@ async function renderItems() {
     </div>
   `).join('');
   
-  // Initialize SortableJS for drag and drop
   if (typeof Sortable !== 'undefined') {
     if (sortableInstance) {
       sortableInstance.destroy();
@@ -755,14 +899,12 @@ async function deleteCategory(categoryId) {
   
   const timestamp = new Date().toISOString();
   
-  // Mark category as deleted locally
   await localDB.saveCategory({
     ...category,
     deleted: true,
     updatedAt: timestamp
   });
   
-  // Move items in this category to Uncategorized (null)
   const items = await localDB.getItems();
   for (const item of items) {
     if (item.categoryId === categoryId) {
@@ -780,14 +922,12 @@ async function deleteCategory(categoryId) {
     }
   }
   
-  // Queue category deletion
   await localDB.queueChange({
     type: 'category_delete',
     id: categoryId,
     timestamp
   });
   
-  // Update local categories array
   categories = categories.filter(c => c.id !== categoryId);
   
   await renderItems();
@@ -803,12 +943,10 @@ function updateCategoryDropdown() {
   const newCategoryInput = document.getElementById('new-category');
   const currentValue = select.value;
   
-  // Don't update if user is creating a new category
   if (currentValue === '__new__' && !newCategoryInput.classList.contains('hidden')) {
     return;
   }
   
-  // Sort categories alphabetically for dropdown
   const sortedCategories = [...categories].sort((a, b) => a.name.localeCompare(b.name));
   
   select.innerHTML = [
@@ -819,7 +957,6 @@ function updateCategoryDropdown() {
     '<option value="__new__">+ New category...</option>'
   ].join('');
   
-  // Restore selection or default to first category
   if (currentValue && currentValue !== '__new__') {
     select.value = currentValue;
   } else if (sortedCategories.length > 0) {
@@ -827,10 +964,7 @@ function updateCategoryDropdown() {
   }
 }
 
-// Category reordering handled by SortableJS
-
 async function reorderCategories(fromId, toId) {
-  // SortableJS already reordered the DOM, just update the sortOrder based on current DOM order
   const container = document.getElementById('items-container');
   const groups = Array.from(container.querySelectorAll('.category-group'));
   
@@ -839,7 +973,7 @@ async function reorderCategories(fromId, toId) {
   
   for (let i = 0; i < groups.length; i++) {
     const catId = groups[i].dataset.categoryId;
-    if (catId === 'null') continue; // Skip Uncategorized
+    if (catId === 'null') continue;
     
     const category = categories.find(c => c.id === catId);
     if (category && category.sortOrder !== i) {
@@ -855,7 +989,6 @@ async function reorderCategories(fromId, toId) {
     }
   }
   
-  // Queue category order change
   if (categoryChanges.length > 0) {
     await localDB.queueChange({
       type: 'category_order',
@@ -863,7 +996,6 @@ async function reorderCategories(fromId, toId) {
       timestamp
     });
     
-    // Re-render with new order
     categories.sort((a, b) => a.sortOrder - b.sortOrder);
     await renderItems();
     
@@ -873,7 +1005,6 @@ async function reorderCategories(fromId, toId) {
   }
 }
 
-// Sync logic
 function startSync() {
   if (syncInterval) clearInterval(syncInterval);
   syncInterval = setInterval(syncNow, 10000);
@@ -885,11 +1016,12 @@ async function syncNow() {
   
   showSyncStatus('Syncing...', false);
   
+  const token = await localDB.getAuthToken();
+  
   try {
     const pending = await localDB.getPendingChanges();
     const lastSync = await localDB.getMeta('lastSync') || '1970-01-01';
     
-    // Separate item and category changes
     const itemChanges = pending.filter(p => !p.type.startsWith('category_'));
     const categoryChanges = pending
       .filter(p => p.type.startsWith('category_') && p.type !== 'category_order')
@@ -901,19 +1033,15 @@ async function syncNow() {
         timestamp: c.timestamp
       }));
     
-    // Get category order changes (use latest)
     const orderChange = pending
       .filter(p => p.type === 'category_order')
       .pop();
     
-
-    
-    const response = await fetch(`${API_URL}/api/sync`, {
+    const response = await fetch(`${API_URL}/api/list/${currentList.id}/sync`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-List-ID': currentList.id,
-        'X-List-PIN': currentList.pin
+        'Authorization': `Bearer ${token}`
       },
       body: JSON.stringify({ 
         itemChanges, 
@@ -926,12 +1054,10 @@ async function syncNow() {
     const data = await response.json();
     if (data.error) throw new Error(data.error);
     
-    // Apply server item changes
     for (const change of data.itemChanges) {
       if (change.type === 'delete') {
         await localDB.deleteItem(change.id);
       } else {
-        // Get existing item to preserve category if server returns null
         const existingItem = await localDB.getItem(change.id);
         const categoryId = change.categoryId !== null && change.categoryId !== undefined 
           ? change.categoryId 
@@ -947,7 +1073,6 @@ async function syncNow() {
       }
     }
     
-    // Apply server category changes
     for (const change of data.categoryChanges) {
       if (change.type === 'delete') {
         await localDB.deleteCategory(change.id);
@@ -961,7 +1086,6 @@ async function syncNow() {
       }
     }
     
-    // Update local categories with server order
     if (data.categoryOrder) {
       for (let i = 0; i < data.categoryOrder.length; i++) {
         const cat = categories.find(c => c.id === data.categoryOrder[i]);
@@ -972,10 +1096,8 @@ async function syncNow() {
       }
     }
     
-    // Refresh categories
     categories = await localDB.getCategories();
     
-    // Clear pending since server processed them
     await localDB.clearPendingChanges();
     await localDB.setMeta('lastSync', data.timestamp);
     
@@ -1046,6 +1168,19 @@ function showSettingsModal() {
   const modal = document.getElementById('settings-modal');
   modal.classList.remove('hidden');
   
+  // Show user info
+  const userInfoEl = document.getElementById('settings-user-info');
+  if (currentUser) {
+    userInfoEl.innerHTML = `
+      ${currentUser.picture ? `<img src="${escapeHtml(currentUser.picture)}" style="width: 40px; height: 40px; border-radius: 50%;">` : ''}
+      <div>
+        <div style="font-weight: 600;">${escapeHtml(currentUser.name || currentUser.email)}</div>
+        <div style="font-size: 12px; color: var(--text-secondary);">${escapeHtml(currentUser.email)}</div>
+      </div>
+    `;
+    userInfoEl.classList.remove('hidden');
+  }
+  
   document.querySelectorAll('.theme-option').forEach(option => {
     const radio = option.querySelector('input');
     radio.onchange = (e) => setTheme(e.target.value);
@@ -1069,5 +1204,21 @@ window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', asy
   }
 });
 
-// Start
+// Open list from URL param (shared link)
+async function handleOpenListParam() {
+  const urlParams = new URLSearchParams(window.location.search);
+  const listId = urlParams.get('list');
+  
+  if (listId && currentUser) {
+    // Clear the param to clean URL
+    window.history.replaceState({}, document.title, window.location.pathname);
+    
+    try {
+      await openList(listId);
+    } catch (e) {
+      console.error('Cannot open shared list:', e);
+    }
+  }
+}
+
 init();

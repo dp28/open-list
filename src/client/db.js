@@ -2,7 +2,7 @@
 // Zero dependencies - vanilla JS only
 
 const DB_NAME = 'shopping-list';
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 
 class LocalDB {
   constructor() {
@@ -236,6 +236,32 @@ class LocalDB {
       const request = store.put({ key, value });
       request.onsuccess = () => resolve();
       request.onerror = () => reject(request.error);
+    });
+  }
+
+  // Auth - store user and token
+  async saveAuth(user, token) {
+    await this.setMeta('authUser', user);
+    await this.setMeta('authToken', token);
+  }
+
+  async getAuthUser() {
+    return this.getMeta('authUser');
+  }
+
+  async getAuthToken() {
+    return this.getMeta('authToken');
+  }
+
+  async clearAuth() {
+    if (!this.db) await this.init();
+    return new Promise((resolve, reject) => {
+      const tx = this.db.transaction('meta', 'readwrite');
+      const store = tx.objectStore('meta');
+      store.delete('authUser');
+      store.delete('authToken');
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
     });
   }
 }
