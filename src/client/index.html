@@ -248,6 +248,56 @@
       color: var(--text-primary);
     }
     
+    .item-suggestions {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      background: var(--surface-1);
+      border: 1px solid var(--border-subtle);
+      border-top: none;
+      border-radius: 0 0 var(--radius-md) var(--radius-md);
+      max-height: 200px;
+      overflow-y: auto;
+      z-index: 100;
+      box-shadow: var(--shadow-md);
+    }
+    
+    .item-suggestion {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 12px;
+      cursor: pointer;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+    
+    .item-suggestion:last-child {
+      border-bottom: none;
+    }
+    
+    .item-suggestion:hover {
+      background: var(--bg-tertiary);
+    }
+    
+    .item-suggestion-text {
+      font-size: 14px;
+      color: var(--text-primary);
+    }
+    
+    .item-suggestion-text.completed {
+      text-decoration: line-through;
+      color: var(--text-muted);
+    }
+    
+    .item-suggestion-category {
+      font-size: 12px;
+      color: var(--text-muted);
+      background: var(--bg-tertiary);
+      padding: 2px 8px;
+      border-radius: var(--radius-sm);
+    }
+    
     .items-container {
       padding: var(--space-xs);
       display: grid;
@@ -1016,7 +1066,10 @@
     </button>
     <form class="add-form" id="add-form" onsubmit="addItem(event)">
       <div class="add-form-row">
-        <input type="text" id="new-item" placeholder="Item name (e.g., Milk)" autocomplete="off" maxlength="100">
+        <div style="position: relative; width: 100%;">
+          <input type="text" id="new-item" placeholder="Item name (e.g., Milk)" autocomplete="off" maxlength="100">
+          <div id="item-suggestions" class="item-suggestions hidden"></div>
+        </div>
       </div>
       <div class="add-form-row">
         <select id="category-select">

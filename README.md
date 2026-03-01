@@ -4,11 +4,14 @@ A simple, free, offline-capable shopping list for your household.
 
 ## Features
 
-- **Free hosting**: Cloudflare Workers + D1 (no Pages needed!)
+- **Google Sign-in**: Sign in with Google to create and manage lists
+- **Private by default**: Lists are private, share with specific people
 - **Works offline**: Changes saved locally, sync when online
-- **Shared**: Multiple users can access the same list
-- **Mobile-first**: PWA with add-to-homescreen support
-- **Zero dependencies**: No npm packages, no framework churn
+- **Shared**: Collaborate on lists with family members
+- **Smart suggestions**: Remembers your items and suggests completions
+- **Mobile-first**: PWA with install prompt
+- **Dark mode**: System, light, or dark theme
+- **Zero dependencies**: Vanilla JS, no framework churn
 - **Single deployment**: Worker serves both API and static files
 
 ## Setup
@@ -33,33 +36,61 @@ Copy the database ID into `wrangler.toml` (replace `YOUR_DATABASE_ID_HERE`)
 wrangler d1 execute shopping-list-db --remote --file=src/worker/schema.sql
 ```
 
-### 5. Deploy
+### 5. Set up Google OAuth
+1. Go to https://console.cloudflare.com/
+2. Create a new OAuth application:
+   - App name: "Shopping List"
+   - Redirect URIs: `https://your-worker.workers.dev/auth/callback`
+3. Add secrets:
+   ```bash
+   echo "YOUR_CLIENT_ID" | wrangler secret put GOOGLE_OAUTH_CLIENT_ID
+   echo "YOUR_CLIENT_SECRET" | wrangler secret put GOOGLE_OAUTH_CLIENT_SECRET
+   ```
+
+### 6. Deploy
 ```bash
 wrangler deploy
 ```
 
 Your app will be live at `https://shopping-list-api.YOUR_SUBDOMAIN.workers.dev`
 
-### 6. Set GitHub secrets (for auto-deploy)
+### 7. Set GitHub secrets (for auto-deploy)
 In your GitHub repo settings, add:
 - `CLOUDFLARE_API_TOKEN` (create at https://dash.cloudflare.com/profile/api-tokens with "Edit Cloudflare Workers" permission)
 - `CLOUDFLARE_ACCOUNT_ID` (find in Cloudflare dashboard sidebar)
+
+## Usage
+
+### Getting Started
+1. Open the deployed URL
+2. Sign in with Google
+3. Create your first list
+4. Add items
+
+### Sharing Lists
+1. Tap the share button on a list
+2. Enter the email of the person you want to share with
+3. They must sign in with Google first
+4. They'll see the list in their "Your Lists" section
+
+### Smart Suggestions
+- When typing an item name, suggestions appear below
+- Suggestions show previous items you've added
+- Categories are auto-suggested based on previous items with the same name
+- Incomplete items appear before completed ones
+
+### Offline Mode
+- Works completely offline
+- Changes sync automatically when back online
+- "Add to Home Screen" for the best experience
 
 ## Architecture
 
 - **Frontend**: Vanilla JS PWA with IndexedDB for offline storage
 - **Backend**: Cloudflare Worker serves API + static files
 - **Database**: Cloudflare D1 (SQLite at edge)
+- **Authentication**: Google OAuth 2.0 (implicit flow)
 - **Sync**: Queue-based with timestamp conflict resolution
-
-## Usage
-
-1. Open the deployed URL on your phone
-2. Create a list with a name and PIN
-3. Share the list ID and PIN with household members
-4. Add items - they sync automatically when online
-5. Check items off in the supermarket (works offline!)
-6. "Add to Home Screen" for app-like experience
 
 ## Development
 

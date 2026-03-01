@@ -666,14 +666,91 @@ function setupCategoryInput() {
   const itemInput = document.getElementById('new-item');
   const categorySelect = document.getElementById('category-select');
   const newCategoryInput = document.getElementById('new-category');
+  const suggestionsContainer = document.getElementById('item-suggestions');
   
   itemInput.addEventListener('input', async (e) => {
     const text = e.target.value.trim();
+    
+    // Show item name suggestions
+    if (text.length >= 2) {
+      const suggestions = await localDB.getItemSuggestions(text);
+      renderItemSuggestions(suggestions);
+    } else {
+      hideItemSuggestions();
+    }
+    
+    // Category suggestion on exact match
     if (text.length > 2) {
       const suggestedCategoryId = await localDB.suggestCategoryForItem(text);
       if (suggestedCategoryId) {
         categorySelect.value = suggestedCategoryId;
       }
+    }
+  });
+  
+  // Hide suggestions when clicking outside
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.add-form-row')) {
+      hideItemSuggestions();
+    }
+  });
+  
+  // Hide suggestions on blur (with delay to allow click)
+  itemInput.addEventListener('blur', () => {
+    setTimeout(hideItemSuggestions, 200);
+  });
+  
+  categorySelect.addEventListener('change', (e) => {
+    if (e.target.value === '__new__') {
+      newCategoryInput.classList.remove('hidden');
+      newCategoryInput.focus();
+    } else {
+      newCategoryInput.classList.add('hidden');
+    }
+  });
+}
+
+function renderItemSuggestions(suggestions) {
+  const container = document.getElementById('item-suggestions');
+  
+  if (suggestions.length === 0) {
+    container.classList.add('hidden');
+    return;
+  }
+  
+  container.innerHTML = suggestions.map(s => `
+    <div class="item-suggestion" onclick="selectItemSuggestion('${escapeHtml(s.text).replace(/'/g, "\\'")}', '${s.categoryId || ''}')">
+      <span class="item-suggestion-text ${s.completed ? 'completed' : ''}">${escapeHtml(s.text)}</span>
+      ${s.categoryId ? `<span class="item-suggestion-category">${escapeHtml(getCategoryName(s.categoryId))}</span>` : ''}
+    </div>
+  `).join('');
+  
+  container.classList.remove('hidden');
+}
+
+function hideItemSuggestions() {
+  const container = document.getElementById('item-suggestions');
+  container.classList.add('hidden');
+}
+
+function selectItemSuggestion(text, categoryId) {
+  const itemInput = document.getElementById('new-item');
+  const categorySelect = document.getElementById('category-select');
+  
+  itemInput.value = text;
+  
+  if (categoryId) {
+    categorySelect.value = categoryId;
+  }
+  
+  hideItemSuggestions();
+  itemInput.focus();
+}
+
+function getCategoryName(categoryId) {
+  const category = categories.find(c => c.id === categoryId);
+  return category ? category.name : '';
+}
     }
   });
   

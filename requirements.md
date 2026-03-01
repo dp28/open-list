@@ -51,6 +51,7 @@ A simple, free, offline-capable shopping list for household use. Multiple users 
 - [x] Create new categories on-the-fly
 - [x] Alphabetized dropdown of existing categories
 - [x] Auto-suggest category based on past items
+- [x] Suggest item name completions based on previous items
 - [x] Group items by category in UI
 - [x] Drag-and-drop reordering of categories
 - [x] Persist category order locally and sync across devices
@@ -189,7 +190,7 @@ A simple, free, offline-capable shopping list for household use. Multiple users 
 
 ## Backlog
 
-- Remember previous items (suggest completions when typing an item name based on previous items, and automatically select categories based on what that item had previously)
+(None)
 
 ---
 

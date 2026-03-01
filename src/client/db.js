@@ -182,6 +182,35 @@ class LocalDB {
     return match ? match.categoryId : null;
   }
 
+  // Get item name suggestions based on all previous items
+  async getItemSuggestions(partialText, limit = 5) {
+    if (!this.db || !partialText || partialText.length < 2) return [];
+    
+    const items = await this.getItems();
+    const text = partialText.toLowerCase();
+    
+    // Find unique items that match the partial text
+    const matches = new Map();
+    for (const item of items) {
+      const itemText = item.text.toLowerCase();
+      if (itemText.includes(text) && !item.deleted) {
+        // Keep track of unique items (by text), preferring completed=false
+        const existing = matches.get(itemText);
+        if (!existing || (!existing.completed && item.completed)) {
+          matches.set(itemText, { text: item.text, completed: item.completed, categoryId: item.categoryId });
+        }
+      }
+    }
+    
+    // Return suggestions sorted by: incomplete items first, then alphabetical
+    return Array.from(matches.values())
+      .sort((a, b) => {
+        if (a.completed !== b.completed) return a.completed ? 1 : -1;
+        return a.text.localeCompare(b.text);
+      })
+      .slice(0, limit);
+  }
+
   // Pending changes queue
   async queueChange(change) {
     if (!this.db) await this.init();
